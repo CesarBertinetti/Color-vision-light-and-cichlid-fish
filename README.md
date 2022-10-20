@@ -7,9 +7,9 @@ The code provided here is required to perform the analysis associated with the m
 Environmental Drivers of Adaptive Divergence in Visual Sensitivity Across Freshwater Habitats"
 
 
-The R Markdown interactive notebook includes a step-by-step description of the different analysis.
+The R Markdown interactive notebook includes a step-by-step description of the different analyses.
 
-This Color-vision-light-and-cichlids_readme.txt file was last updated by Cesar Bertinetti on 2022-Oct-15 
+This Color-vision-light-and-cichlids_readme.txt file was created by Cesar Bertinetti on 2022-Oct-15 
 
 
 GENERAL INFORMATION
