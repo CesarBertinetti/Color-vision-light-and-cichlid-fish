@@ -1,0 +1,409 @@
+---
+title: "Code from: Environmental Drivers of Adaptive Divergence in Visual Sensitivity across Freshwater Habitats"
+author: "César Bertinetti"
+date: "October 19 2022"
+output:
+  html_document:
+    df_print: paged
+  pdf_document:
+    latex_engine: xelatex
+---
+
+<style type="text/css">
+
+h1.title {
+  font-size: 28px;
+  color: Black;
+  text-align: justify;
+}
+h4.author { /* Header 4 - and the author and data headers use this too  */
+    font-size: 18px;
+  font-family: "Helvetica", Times, serif;
+  color: Black;
+  text-align: justify;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+  font-size: 18px;
+  font-family: "Helvetica", Times, serif;
+  color: Black;
+  text-align: justify;
+}
+</style>
+
+<style>
+pre {
+  font-size: 14px;
+}
+</style>
+
+<br/>
+
+The datasets needed to reproduce this analysis are deposited on DRYAD and are associated with MS Environmental Drivers of Adaptive Divergence in Visual Sensitivity across Freshwater Habitats aDF ef aF eg BLA BLA
+
+
+Following R version and packages were used to run this code:
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#setwd("~/Documents/Bio&Learn/BAYSTATS/")
+pak <- c("readr", "stringr", "matrixStats","dplyr","tidyr","plotrix","RColorBrewer",
+         "MESS","zoo","car","ggplot2","gridExtra","stringr","pracma","rsq","lme4","pander",
+         "agricolae", "ggfortify", "partR2", "vegan")
+lapply(pak, require, character.only = TRUE)
+``` 
+```{r, include=TRUE}
+
+R.version$platform
+R.version$version.string
+installed.packages()[names(sessionInfo()$otherPkgs), "Version"]
+
+```
+
+
+## Irradiance raw measurements ##
+
+Load list of files (multiple measurements for each depth and location):
+```{r}
+D_Lake<-list.files("~/Documents/StayTuned/Scripts/LAKE") # Replace lake with folder including measurements for each location - remember to set working directory where these files are located
+Sp_Lake <-data.frame()
+```
+<br> Then just need to create dataframe and fill the rows adjusting by integration time:
+```{r, results='hide'}
+setwd("~/Documents/StayTuned/Scripts/LAKE/")
+for (i in 1:length(D_Lake)){    # going through the list of file names
+  D_Lake_name<-D_Lake[i] # choose the name in the list of file names
+  print(i)  # I want to know where it is 
+  
+  Depth <- paste(substr(D_Lake_name, 1,1), str_sub(D_Lake_name, -40, -38) , sep="") # Extracts Depth
+ 
+  Down_Lake_data<-read.table(D_Lake_name, header=F,sep="\t",dec=".", skip = 337, nrows = 1032, stringsAsFactors = F) 
+  lines<- readLines(D_Lake_name, n=17)
+  int.time <- as.numeric((substr(lines[7],  25,35)))
+  Down_Lake_data[,2] <- Down_Lake_data[,2] / int.time # Adjusting for integration time of measurement
+  Down_Lake_data[,3] <- Depth
+  #filling the df
+  Sp_Lake <- rbind(Sp_Lake,Down_Lake_data)
+  Sp_Lake [i,3] <- Depth
+}
+colnames(Sp_Lake)<-c("Wavelength","Photons", "Depth")
+```
+<br> Account for different spelling in the files names. Depth consists of a letter for light orientation (either d=downwelling, s=sidewelling or u=upwelling) and a number for meters below water surface (su)
+
+```{r}
+Sp_Lake$Depth <- gsub("DG" , "d", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("D" , "d", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("dg" , "d", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("UG" , "u", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("U" , "u", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("ug" , "u", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("SG" , "s", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("S" , "s", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("sg" , "s", Sp_Lake$Depth)
+Sp_Lake$Depth <- gsub("fac" , "_su", Sp_Lake$Depth)
+```
+<br> Finally, the irradiance spectra need to be converted from mW/cm²/nm to photons/s/cm²/nm based on Johnsen, S. (2012). *The Optics of Life: A Biologist's Guide to Light in Nature.* Princeton: Princeton University Press. https://doi.org/10.1515/9781400840663, Chapter 2, page 9-12
+
+```{r}
+  Sp_Lake$Photons <- Sp_Lake$Wavelength * (Sp_Lake$Photons/10^6) * 5.05*10^15
+```
+<br> Then create the dataframe with the median irradiance values for each wavelength (rows) at each depth & orientation (columns):
+```{r}
+Sp_Lake <- subset(Sp_Lake, Wavelength >= 340 & Wavelength <= 750) # Here the visible part of the spectrum is selected
+m_sp_lake <- aggregate(Photons ~ Wavelength + Depth, data = Sp_Lake, FUN=median) # median from measurements of same depth & orientation as reference to reduce noise
+m_sp_lake <- do.call(data.frame, m_sp_lake) 
+m_sp_lake$Depth<- factor(m_sp_lake$Depth,levels=c("d_su","d_0", "d_1","d_2","d_3","s_0", "s_1","s_2","s_3"))
+# Depending on lake more depths and orientation area avaible. These can be inspected with beforehand with levels()
+lake <- spread(m_sp_lake,  key = "Depth", value = "Photons") # Now each column represents the mean phtons at each depth & orienation
+head(lake)
+```
+<br> Further rolling mean is applied for smoothing the spectra. The functions for estimating λP50 were used in Rennison et al. (2016). *Rapid adaptive evolution of colour vision in the threespine stickleback radiation.* Proc. Royal Soc. B, 283 (1830), s. 20160242. doi:10.1098/rspb.2016.0242 and were kindly provided by the authors.
+```{r}
+window.w <- 15	# the size to the left/right of vocal point over which mean is taken
+for (i in 2:ncol(lake)) {
+  irr.t.roll.mean <- data.frame(cbind(rollmean(lake$Wavelength, window.w), rollmean(lake[,i], window.w)))
+  colnames(irr.t.roll.mean) <- c("wl", "nI")
+  fitted.spline <- splinefun(irr.t.roll.mean$wl, irr.t.roll.mean$nI)
+  new.intensity <- fitted.spline(lake$Wavelength)
+  lake[i] <- new.intensity
+}
+```
+<br> Now the photic parameters can be extracted from the median reference spectra:
+```{r}
+lake[lake[,] < 0] <- 0 # Some negaitve values arise from spectrometer inaccurary
+P50_lake <-data.frame()
+for (i in 2:ncol(lake)){
+  x <- lake$Wavelength # Due to the rolling mean, the range is made a bit smaller here to reduce noise in the extremes of the visible spectrum
+  y <- lake[,i]
+  dx <- diff(x)
+  mx <- (x[-1] + x[-length(x)])/2
+  my <- (y[-1] + y[-length(y)])/2
+  lambda.50 <- uniroot(approxfun(mx, cumsum(my * dx) - sum(my * dx)/2), range(mx))$root
+  lambda.25 <- uniroot(approxfun(mx, cumsum(my * dx) - sum(my * dx)*0.25), range(mx))$root
+  lambda.75 <- uniroot(approxfun(mx, cumsum(my * dx) - sum(my * dx)*0.75), range(mx))$root
+  spwidth <- lambda.75 - lambda.25
+  depth <- colnames(lake[i])
+  if (startsWith(colnames(lake[i]), "d") == T){  # Downwelling compared to d_0 and Sidewelling compared to s_0
+  lux<- (trapz(x,y) *100) / (trapz(x,lake$d_0))  # Total amount of photons relative to 15cm below surface "luminosity"
+  auc <- trapz(x,y)
+  }else{
+  lux<- (trapz(x,y) *100) / (trapz(x,lake$s_0))
+  auc <- trapz(x,y)
+}
+  P50_lake[i-1,c(1:7)] <- cbind(lambda.50,lambda.25,lambda.75,spwidth,depth,lux,auc) # generate dataframe
+}
+colnames(P50_lake) <- c("P50","P25","P75","Band", "d", "lux", "auc") #Naming the variables
+P50_lake$loc <- "lake" # Use the location's name to identify measurements
+head(P50_lake)
+```
+
+<br> Spectral downwelling attenuation coefficients are calculated from the absolute values at a given depth compared to the surface following Kirk, J. (1994). *Light and Photosynthesis in Aquatic Ecosystems (2nd ed.)*. Cambridge: Cambridge University Press. doi:10.1017/CBO9780511623370, Chapter 1, pg 11-15.
+```{r}
+lake$Kd <- 1 * log (lake$d_1 / lake$d_su)
+lake$Kd <- lake$Kd / min(lake$Kd) # Normalized spectral attenaution coefficients
+```
+<br> The absolute irradiance measurements are divided by the maximal value to obtain normalized irradiance:
+```{r}
+for (i in 2:(ncol(lake)-1)){             #last column is Kd from previous code chunk
+  lake[,i] <- lake[,i] / max(lake[,i])
+}
+```
+
+<br> Finally a correlation-based Principals Component Analysis (PCA) is used to generate a composite axis that accounts for most of the variation among photic environments:
+
+```{r}
+to50 <- read.table("PhoticParameters.csv", stringsAsFactors=F, header = T, sep=",", dec = ".") [-1]
+d1 <- subset(to50, d == 'd_1') [,-c(4,6)]# Extracts photic parameters calculated using downwelling irradiance at one meter depth
+s1 <- subset(to50, d == 's_1') [,-c(4:6)] # Extracts photic parameters calculated using sidewelling irradiance at one meter depth
+to50 <-cbind(d1,s1)
+rownames(to50) <- to50$loc  # Add lakes names as rownames for matrix later one
+#to50 <- to50[,-c(4:5,7:8,12:16)] # Not all varaib
+# USING P@25 and P75 instead of Interval "Width" makes more sense and gives better results!
+colnames(to50) <-c("P50_d","P25_d","P75_d","lux_1","P50_s","P25_s","P75_s") #[,-c(6:11)] 
+
+t50 <- scale(to50, scale = T) # Scaled variables (mean=0, variance=1)
+Idata.dist.t <- vegdist(as.matrix(t50), method = "euclidean")
+Idata.pca.t <- cmdscale(Idata.dist.t,eig=T )
+Idata.pca.t # GOF = 0.98
+Idata.pca.t$eig[1]/sum(Idata.pca.t$eig)  # 0.93% of aviation explained by PCA1
+to50<- merge(to50,Idata.pca.t$points[,1], by.x="row.names", by.y="row.names") # adds position of lakes on PCA to the table for downstream analysis 
+
+```
+
+
+## Opsin Gene Expression and Spectral Sensitivity Curves ##
+
+First, create the absorbance spectra templates based on Govardovskii et al. (2000). *In search of the visual pigment template.* Vis Neurosci, 17 (4), s. 509–528. doi:10.1017/s0952523800174036. These are then adjusted by the peak in absorbance of the respective opsin protein according to Torres-Dowdall et al. (2017). *Rapid and Parallel Adaptive Evolution of the Visual System of Neotropical Midas Cichlid Fishes.* Mol Biol Evol, 34 (10), s. 2469–2485. doi:10.1093/molbev/msx143
+
+```{r}
+wl <- lake$Wavelength[22:972]# selecting 350 to 750 nm
+
+#Define lambda max for each pigments A1 #A1 <- c(360,431,450,476,509,559)
+#??max <- 559  #LWS - R
+#??max <- 509  #RH2a-beta - Gb
+#??max <- 476  #RH2b - BG
+#??max <- 450  #Sws2a - Bl
+#??max <- 431  #SWs2b - V
+#??max <- 360  #SWS1 - UV
+
+#Define lambda max for each pigments A2 #A2 <- c(360,440,466,500,555,610)
+#??max <- 610  #LWS - R
+#??max <- 555  #RH2a-beta - Gb
+#??max <- 500  #RH2b - BG
+#??max <- 466  #Sws2a - Bl
+#??max <- 440  #SWs2b - V
+#??max <- 360  #SWS1 - UV
+
+### #ratio A1 and A2 opsins
+ratio.A2_A1 <- c(1,0) # adjust the chromophore used for analysis, here assume A2
+if(sum(ratio.A2_A1) != 1) print("WARNING: A1-A2 ratio is not 1!!!")
+# functie to calculate lambda max
+# "SWS1" "SWS2b" "S "RH2"  "LWS"
+opsin.max.range <- matrix(NA, nrow = 6, ncol = 2)
+rownames(opsin.max.range) <- c("SWS1","SWS2B","SWS2A","RH2b","RH2a","LWS")
+colnames(opsin.max.range) <- c("A1", "A2")
+opsin.max.range[1,] <- c(360, 360)
+opsin.max.range[2,] <- c(431, 440)
+opsin.max.range[3,] <- c(450, 466)
+opsin.max.range[4,] <- c(476, 500)
+opsin.max.range[5,] <- c(509, 555)
+opsin.max.range[6,] <- c(559, 610)
+
+f.calc.lamba.max <- function(A1.proportion){
+  l.max.temp <- rep(NA,6)
+  for(l.m in 1:6) l.max.temp[l.m] <- opsin.max.range[l.m, 1] + ((opsin.max.range[l.m, 2] - opsin.max.range[l.m, 1]) * A1.proportion)
+  return(l.max.temp)
+}
+
+peaks <- f.calc.lamba.max(ratio.A2_A1[1])
+
+#LWS #Govardovskii's template
+lambdamax <- peaks[6]
+R_lambdamax <- lambdamax/wl
+A <- 69.7; B <- 28; b <- 0.922; C <- (-14.9); c <- 1.104;  D <- 0.674; a_lambdamax <- 0.8795 + 0.0459 * exp(-(lambdamax-300)^2/11940)
+S_alpha <- 1/(exp(A*(a_lambdamax-R_lambdamax))+exp(B*(b-R_lambdamax))+exp(C*(c-R_lambdamax))+D)
+lambdamlambda <- 189 + 0.315*lambdamax; be <- -40.5 + 0.195*lambdamax
+S_beta <- 0.26*exp(-((wl-lambdamlambda)/be)^2)
+
+R <- S_alpha+S_beta # For LWS 
+
+#rh2ab #Govardovskii's template
+lambdamax <- peaks[5]
+R_lambdamax <- lambdamax/wl
+A <- 69.7; B <- 28; b <- 0.922; C <- (-14.9); c <- 1.104;  D <- 0.674; a_lambdamax <- 0.8795 + 0.0459 * exp(-(lambdamax-300)^2/11940)
+S_alpha <- 1/(exp(A*(a_lambdamax-R_lambdamax))+exp(B*(b-R_lambdamax))+exp(C*(c-R_lambdamax))+D)
+lambdamlambda <- 189 + 0.315*lambdamax; be <- -40.5 + 0.195*lambdamax
+S_beta <- 0.26*exp(-((wl-lambdamlambda)/be)^2)
+
+Gb <- S_alpha+S_beta
+
+#rh2b #Govardovskii's template
+lambdamax <- peaks[4]
+R_lambdamax <- lambdamax/wl
+A <- 69.7; B <- 28; b <- 0.922; C <- (-14.9); c <- 1.104;  D <- 0.674; a_lambdamax <- 0.8795 + 0.0459 * exp(-(lambdamax-300)^2/11940)
+S_alpha <- 1/(exp(A*(a_lambdamax-R_lambdamax))+exp(B*(b-R_lambdamax))+exp(C*(c-R_lambdamax))+D)
+lambdamlambda <- 189 + 0.315*lambdamax; be <- -40.5 + 0.195*lambdamax
+S_beta <- 0.26*exp(-((wl-lambdamlambda)/be)^2)
+
+BG <- S_alpha+S_beta
+
+
+#sws2a #Govardovskii's template
+lambdamax <- peaks[3]
+R_lambdamax <- lambdamax/wl
+A <- 69.7; B <- 28; b <- 0.922; C <- (-14.9); c <- 1.104;  D <- 0.674; a_lambdamax <- 0.8795 + 0.0459 * exp(-(lambdamax-300)^2/11940)
+S_alpha <- 1/(exp(A*(a_lambdamax-R_lambdamax))+exp(B*(b-R_lambdamax))+exp(C*(c-R_lambdamax))+D)
+lambdamlambda <- 189 + 0.315*lambdamax; be <- -40.5 + 0.195*lambdamax
+S_beta <- 0.26*exp(-((wl-lambdamlambda)/be)^2)
+
+Bl <- S_alpha+S_beta
+
+#sws2b #Govardovskii's template
+lambdamax <- peaks[2]
+R_lambdamax <- lambdamax/wl
+A <- 69.7; B <- 28; b <- 0.922; C <- (-14.9); c <- 1.104;  D <- 0.674; a_lambdamax <- 0.8795 + 0.0459 * exp(-(lambdamax-300)^2/11940)
+S_alpha <- 1/(exp(A*(a_lambdamax-R_lambdamax))+exp(B*(b-R_lambdamax))+exp(C*(c-R_lambdamax))+D)
+lambdamlambda <- 189 + 0.315*lambdamax; be <- -40.5 + 0.195*lambdamax
+S_beta <- 0.26*exp(-((wl-lambdamlambda)/be)^2)
+V <- S_alpha+S_beta
+
+#sws1 #Govardovskii's template
+lambdamax <- peaks[1]
+R_lambdamax <- lambdamax/wl
+A <- 69.7; B <- 28; b <- 0.922; C <- (-14.9); c <- 1.104;  D <- 0.674; a_lambdamax <- 0.8795 + 0.0459 * exp(-(lambdamax-300)^2/11940)
+S_alpha <- 1/(exp(A*(a_lambdamax-R_lambdamax))+exp(B*(b-R_lambdamax))+exp(C*(c-R_lambdamax))+D)
+lambdamlambda <- 189 + 0.315*lambdamax; be <- -40.5 + 0.195*lambdamax
+S_beta <- 0.26*exp(-((wl-lambdamlambda)/be)^2)
+UV <- S_alpha+S_beta
+```
+<br> Then load the opsin proportional opsin gene expression:
+```{r}
+opsin <- read.table("ProportionalExpression-wild.csv", header=T, sep =",", dec=".",stringsAsFactors = F)
+prop_opsin <- gather(opsin, key="p_opsin", value="value", dplyr::starts_with('P_'))[,-c(11:12)]
+
+prop_opsin$Location <- as.factor(prop_opsin$Location)
+prop_opsin$Location <- factor(prop_opsin$Location,levels=c("SanJuan","Isletas","Apoyo", "LkManagua","Tiscapa","Masaya","AsLeon","Apoyeque", "Xiloa", "AsManagua")) 
+prop_opsin$p_opsin <- factor(prop_opsin$p_opsin,levels=c("P_sws1", "P_sws2b", "P_sws2a", "P_rh2b", "P_rh2a", "P_lws"))
+```
+<br> Load individual sensitivities into empty data frame for each wavelength within visiblie spectrum (row) and individiual spectral sensitivity (column) for each location
+```{r}
+lake_sens <-data.frame()
+# 825 rows (350-700nm)
+for (i in 1:8){ # The indexes allow to select the individuals from each location
+  lake_sens[1:length(wl),i]  <-  R * opsin$P_lws[i] + Gb* opsin$P_rh2a[i] + BG* opsin$P_rh2b[i] + Bl * opsin$P_sws2a[i] + V* opsin$P_sws2b[i]+ UV * opsin$P_sws1[i]
+  names(lake_sens)[i] <- paste("lake_",opsin$Probe[i], sep="")
+}
+```
+<br> Obtain median sensitivity curve for each population:
+```{r}
+momdis = function(x) {
+  c(m = median(x), s = sd(x), iqr = IQR(x), n = length(x), std.error(x))
+}
+population <- aggregate(value ~ p_opsin + Location, data = prop_opsin, momdis)
+population <- do.call(data.frame, population)
+
+Lake_m <- subset(population, Location =="Apoyo") # Here Crater Lake Apoyo as an example
+
+# Mean Curve
+eR <- R * Lake_m[6,3]   # LWS
+eGb <- Gb* Lake_m[5,3]  # RH2a
+eBG <- BG* Lake_m[4,3]  # RH2B
+eBl <- Bl * Lake_m[3,3] # SWS2A
+eV <- V* Lake_m[2,3]    # SWS2B
+eUV<-UV * Lake_m[1,3]   # SWS1
+
+I_lake <- eUV + eR+eGb+eBG+eBl+eV
+```
+<br> Then the change in sensitivity of ancestral (median) - derived populations (individual) is calculated:
+```{r}
+sens_ind <- read.csv("SensitivityCurves-Individuals-A2.csv") [,-1] # Either A1, A2 or 50% ratio, here A2
+sens <- read.csv("Sens_Pop-A2.csv") [,-1]                          # Either A1, A2 or 50% ratio, here A2
+
+for (i in 2:9){
+  sens_ind[i] <- (sens$I_lknic_med - sens_ind[i]) # Here example using Great Lake Nicaragua - Crater Lake Apoyo
+}
+```
+
+## Correlated Changes in Photic Conditions and Spectral Sensitivity Curves ##
+
+<br> Analogous as above, the change in spectra is calculated for ancestral - derived populations pairs (here normalized d_1 = downwelling irradiance at one meter depth):
+```{r, eval=FALSE}
+Lake_SpectralShift <- lake_source$d_1 - lake_derived$d_1 # This has to be replaced accordingly!
+SpectralChange <- lake$d_1 - lake$s_1 # This is just an example comparing spectral change from down- vs sidewelling normalized irradiance
+```
+<br> Then the changes in photic conditions and sensitivity among ancestral-derived populations are correlated and p-values adjusted:
+```{r}
+sens_ind <- read.csv("ChangeSensitivityA2.csv") [,-1] # This file contains change in sensitivity in pairs of ancestral-derived popualtiosn
+b <-   read.csv("ChangeDownIrradiance-ChangeSensitivityA2.csv") [,-1] # This file contains change in irradiance in pairs of ancestral-derived popualtiosn
+Coef_Ind <-data.frame()
+
+for (i in 2:9){
+  Test <- cor.test(b$Apoyo_SS, sens_ind[,i])
+  p <- Test$p.value
+  coef <- as.numeric(Test$estimate)
+  Sample <- colnames(sens_ind)[i]
+  IndCoef<- as.data.frame(cbind(Sample, coef, p))
+  Coef_Ind <- rbind(Coef_Ind, IndCoef)
+}
+for (i in 1:nrow(Coef_Ind)){
+  Coef_Ind$p_adj[i] <- p.adjust(Coef_Ind$p[i], "fdr", n=nrow(Coef_Ind)) # Adjust p-values with Hochberg-Benjamini false discovery rate method
+}
+head(Coef_Ind)
+```
+
+## Random Mixed-Effects Models ##
+
+These models used **PSI** (Predicted Sensitivity Index) as response variable and **Photic** (x-positions along PCA1 from photic conditions) and **Rearing** rearing conditions (lab-reared vs wild-caught) as predictor variables with **Location** as random intercept
+
+```{r}
+m3<- read.csv("Linear Mixed-Effect Model Dataset.csv", stringsAsFactors = T) [,-1]
+
+# 
+m3.lmer <- lmer(PSI_A2 ~ Photic*Rearing + (1|Location), data=m3)     # Model includes interaction
+m3.lmer.add <- lmer(PSI_A2 ~ Photic+Rearing + (1|Location), data=m3) # Only additive model
+#Anova(m3.lmer, type = 2,test.statistic = "F")
+#Anova(m3.lmer, type = 2,test.statistic = "F")
+pander(Anova(m3.lmer, type = 3,test.statistic = "F"))
+rsq(m3.lmer,adj=T,type=c('v'))
+pander(Anova(m3.lmer.add, type = 2,test.statistic = "F"))
+rsq(m3.lmer.add,adj=T,type=c('v'))
+```
+
+<br> Now we can calculate the amount of variation explained by each predcictor varible based on Stoffel. *partR2: partitioning R2 in generalized linear mixed models* 9:e11414. https://doi.org/10.7717/peerj.11414.
+```{r, results='hide'}
+part1 <- partR2(m3.lmer, partvars = c("Photic:Rearing"), nboot=100)
+part2 <- partR2(m3.lmer.add, partvars = c("Photic", "Rearing"), nboot=100) # This takes some time to run
+
+```
+
+
+```{r}
+R3 <- mergeR2(part1, part2)
+R3$R2
+```
+
+
+
+
+
+
+
