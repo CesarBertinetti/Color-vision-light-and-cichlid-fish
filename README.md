@@ -3,7 +3,7 @@
 The datasets associated with this code can be found in
 https://doi.org/10.5061/dryad.j3tx95xgk
 
-The code provided here is required to perform the analysis associated with the manuscript: Bertinetti, C., Härer, A., Karagic, N., Meyer, A. & Torres-Dowdall, J. (2024). Repeated Divergence in Opsin Gene Expression Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes. The American Naturalist. https://doi.org/10.1086/729420
+The code provided here is required to perform the analysis associated with the manuscript: Bertinetti, C., Härer, A., Karagic, N., Meyer, A. & Torres-Dowdall, J. (2024). Repeated Divergence in Opsin Gene Expression Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes. The American Naturalist. [https://doi.org/10.1086/729420](https://doi.org/10.5061/dryad.j3tx95xgk)
 
 
 The R Markdown interactive notebook includes a step-by-step description of the different analyses.
