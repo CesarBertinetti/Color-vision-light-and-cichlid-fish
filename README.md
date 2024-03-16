@@ -1,11 +1,9 @@
 # Color-vision-light-and-cichlids
 
-Interactive Notebook for Repeated Divergence in Opsin Gene Expression Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes
+The datasets associated with this code can be found in
+https://doi.org/10.5061/dryad.j3tx95xgk
 
-
-The datasets associated with this code can be found in https://datadryad.org/stash/share/gzH2CvhEtYRoc_bNWt-R4eJ3UnGCPdPYH19vI3hCNoQ
-
-The code provided here is required to perform the analysis associated with the manuscript "Repeated Phenotypic Divergence in Visual Sensitivity Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes"
+The code provided here is required to perform the analysis associated with the manuscript: Bertinetti, C., Härer, A., Karagic, N., Meyer, A. & Torres-Dowdall, J. (2024). Repeated Divergence in Opsin Gene Expression Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes. The American Naturalist. doi:10.1086/729420
 
 
 The R Markdown interactive notebook includes a step-by-step description of the different analyses.
@@ -15,7 +13,7 @@ This Color-vision-light-and-cichlids_readme.txt file was created by Cesar Bertin
 
 GENERAL INFORMATION
 
-1. Title of Dataset: Repeated Phenotypic Divergence in Visual Sensitivity Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes
+1. Title of Dataset: Repeated Divergence in Opsin Gene Expression Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes
 
 
 2. Author Information
