@@ -12,7 +12,7 @@
 <meta name="author" content="César Bertinetti" />
 
 
-<title>Code from: Repeated Phenotypic Divergence in Visual Sensitivity Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes</title>
+<title>Code from: Repeated Divergence in Opsin Gene Expression Mirrors Photic Habitat Changes in Rapidly Evolving Crater Lake Cichlid Fishes</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1620,8 +1620,8 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">Code from: Repeated Phenotypic Divergence
-in Visual Sensitivity Mirrors Photic Habitat Changes in Rapidly Evolving
+<h1 class="title toc-ignore">Code from: Repeated Divergence in Opsin
+Gene Expression Mirrors Photic Habitat Changes in Rapidly Evolving
 Crater Lake Cichlid Fishes</h1>
 <h4 class="author">César Bertinetti</h4>
 <h4 class="date">October 19 2022</h4>
@@ -1654,11 +1654,13 @@ font-size: 14px;
 }
 </style>
 <p><br /></p>
-<p>The datasets needed to reproduce this analysis are deposited on <a href="https://datadryad.org/stash/share/gzH2CvhEtYRoc_bNWt-R4eJ3UnGCPdPYH19vI3hCNoQ" class="uri">https://datadryad.org/stash/share/gzH2CvhEtYRoc_bNWt-R4eJ3UnGCPdPYH19vI3hCNoQ</a>
-and are associated with the publication “Repeated Phenotypic Divergence
-in Visual Sensitivity Mirrors Photic Habitat Changes in Rapidly Evolving
-Crater Lake Cichlid Fishes” by C. Bertinetti, A. Härer, N. Karagic, A.
-Meyer &amp; J. Torres-Dowdall, 2023.</p>
+<p>The datasets needed to reproduce this analysis are deposited on
+Bertinetti, César et al. 2023. <em>Data from: Repeated Divergence in
+Opsin Genes Expression Mirrors Photic Habitat Changes in Rapidly
+Evolving Crater Lake Cichlid Fishes</em> [Dataset]. Dryad. <a href="https://doi.org/10.5061/dryad.j3tx95xgk" class="uri">https://doi.org/10.5061/dryad.j3tx95xgk</a></p>
+<p>Thiss code is associated with <em>Repeated Divergence in Opsin Genes
+Expression Mirrors Photic Habitat Changes in Rapidly Evolving Crater
+Lake Cichlid Fishes, The American Naturalist</em> <a href="https://doi.org/10.1086/729420" class="uri">https://doi.org/10.1086/729420</a></p>
 <p>Following R version and packages were used to run this code:</p>
 <pre class="r"><code>R.version$platform</code></pre>
 <pre><code>## [1] &quot;aarch64-apple-darwin20&quot;</code></pre>
@@ -1666,23 +1668,26 @@ Meyer &amp; J. Torres-Dowdall, 2023.</p>
 <pre><code>## [1] &quot;R version 4.2.3 (2023-03-15)&quot;</code></pre>
 <pre class="r"><code>installed.packages()[names(sessionInfo()$otherPkgs), &quot;Version&quot;]</code></pre>
 <pre><code>##    sensemakr        vegan      lattice      permute       partR2    ggfortify 
-##      &quot;0.1.4&quot;      &quot;2.6-4&quot;    &quot;0.20-45&quot;      &quot;0.9-7&quot;      &quot;0.9.1&quot;     &quot;0.4.16&quot; 
+##      &quot;0.1.4&quot;      &quot;2.6-4&quot;     &quot;0.21-8&quot;      &quot;0.9-7&quot;      &quot;0.9.1&quot;     &quot;0.4.16&quot; 
 ##    agricolae       pander         lme4       Matrix          rsq       pracma 
-##      &quot;1.3-5&quot;      &quot;0.6.5&quot;     &quot;1.1-32&quot;      &quot;1.5-3&quot;        &quot;2.5&quot;      &quot;2.4.2&quot; 
+##      &quot;1.3-5&quot;      &quot;0.6.5&quot;     &quot;1.1-34&quot;    &quot;1.5-4.1&quot;        &quot;2.5&quot;      &quot;2.4.2&quot; 
 ##    gridExtra      ggplot2          car      carData          zoo         MESS 
-##        &quot;2.3&quot;      &quot;3.4.1&quot;      &quot;3.1-2&quot;      &quot;3.0-5&quot;     &quot;1.8-11&quot;      &quot;0.5.9&quot; 
+##        &quot;2.3&quot;      &quot;3.4.2&quot;      &quot;3.1-2&quot;      &quot;3.0-5&quot;     &quot;1.8-12&quot;      &quot;0.5.9&quot; 
 ## RColorBrewer      plotrix        tidyr        dplyr  matrixStats      stringr 
-##      &quot;1.1-3&quot;      &quot;3.8-2&quot;      &quot;1.3.0&quot;      &quot;1.1.1&quot;     &quot;0.63.0&quot;      &quot;1.5.0&quot; 
+##      &quot;1.1-3&quot;      &quot;3.8-2&quot;      &quot;1.3.0&quot;      &quot;1.1.2&quot;      &quot;1.0.0&quot;      &quot;1.5.0&quot; 
 ##        readr 
 ##      &quot;2.1.4&quot;</code></pre>
 <div id="irradiance-raw-measurements" class="section level2">
 <h2>Irradiance raw measurements</h2>
-<p>Load list of files (multiple measurements for each depth and
-location):</p>
-<pre class="r"><code>D_Lake&lt;-list.files(&quot;~/Documents/StayTuned/Scripts/LAKE&quot;) # Replace lake with folder including measurements for each location - remember to set working directory where these files are located
+<p>The “RawIrradiance.zip” contains the raw irradiance measurements for
+each depth and sensor orientation placed within the folder of the
+location (lake) where they were collected. First, all the names of the
+files within one folder (lake) can be loaded using:</p>
+<pre class="r"><code>D_Lake&lt;-list.files(&quot;~/Documents/StayTuned/Scripts/LAKE&quot;)
 Sp_Lake &lt;-data.frame()</code></pre>
-<p><br> Then just need to create dataframe and fill the rows adjusting
-by integration time:</p>
+<p><br> Then, all the irradiance measurements for one location are
+merged adjusting by integration time for downstream analysis. Please
+ensure the files are located within your working directory.</p>
 <pre class="r"><code>setwd(&quot;~/Documents/StayTuned/Scripts/LAKE/&quot;)
 for (i in 1:length(D_Lake)){    # going through the list of file names
   D_Lake_name&lt;-D_Lake[i] # choose the name in the list of file names
@@ -1690,7 +1695,8 @@ for (i in 1:length(D_Lake)){    # going through the list of file names
   
   Depth &lt;- paste(substr(D_Lake_name, 1,1), str_sub(D_Lake_name, -40, -38) , sep=&quot;&quot;) # Extracts Depth
  
-  Down_Lake_data&lt;-read.table(D_Lake_name, header=F,sep=&quot;\t&quot;,dec=&quot;.&quot;, skip = 337, nrows = 1032, stringsAsFactors = F) 
+  Down_Lake_data&lt;-read.table(D_Lake_name, header=F,sep=&quot;\t&quot;,dec=&quot;.&quot;,
+                             skip = 337, nrows = 1032, stringsAsFactors = F) 
   lines&lt;- readLines(D_Lake_name, n=17)
   int.time &lt;- as.numeric((substr(lines[7],  25,35)))
   Down_Lake_data[,2] &lt;- Down_Lake_data[,2] / int.time # Adjusting for integration time of measurement
@@ -1727,7 +1733,7 @@ m_sp_lake &lt;- aggregate(Photons ~ Wavelength + Depth, data = Sp_Lake, FUN=medi
 m_sp_lake &lt;- do.call(data.frame, m_sp_lake) 
 m_sp_lake$Depth&lt;- factor(m_sp_lake$Depth,levels=c(&quot;d_su&quot;,&quot;d_0&quot;, &quot;d_1&quot;,&quot;d_2&quot;,&quot;d_3&quot;,&quot;s_0&quot;, &quot;s_1&quot;,&quot;s_2&quot;,&quot;s_3&quot;))
 # Depending on lake more depths and orientation area avaible. These can be inspected with beforehand with levels()
-lake &lt;- spread(m_sp_lake,  key = &quot;Depth&quot;, value = &quot;Photons&quot;) # Now each column represents the mean phtons at each depth &amp; orienation
+lake &lt;- spread(m_sp_lake,  key = &quot;Depth&quot;, value = &quot;Photons&quot;) # Now each column represents the mean photons at each depth &amp; orienation
 head(lake)</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
@@ -1750,7 +1756,7 @@ for (i in 2:ncol(lake)) {
 }</code></pre>
 <p><br> Now the photic parameters can be extracted from the median
 reference spectra:</p>
-<pre class="r"><code>lake[lake[,] &lt; 0] &lt;- 0 # Some negaitve values arise from spectrometer inaccurary
+<pre class="r"><code>lake[lake[,] &lt; 0] &lt;- 0 # Some negaitve values arise from spectrometer inaccuracy
 P50_lake &lt;-data.frame()
 for (i in 2:ncol(lake)){
   x &lt;- lake$Wavelength # Due to the rolling mean, the range is made a bit smaller here to reduce noise in the extremes of the visible spectrum
@@ -2149,7 +2155,7 @@ part2 &lt;- partR2(m3.lmer.add, partvars = c(&quot;Photic&quot;, &quot;Rearing&q
 R3$R2</code></pre>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["term"],"name":[1],"type":["chr"],"align":["left"]},{"label":["estimate"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["CI_lower"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["CI_upper"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["ndf"],"name":[5],"type":["int"],"align":["right"]}],"data":[{"1":"Full","2":"0.647382799","3":"0.5481416","4":"0.7486512","5":"4"},{"1":"Photic:Rearing","2":"0.006828144","3":"0.0000000","4":"0.2172950","5":"3"},{"1":"Photic","2":"0.497745829","3":"0.3884676","4":"0.6103585","5":"2"},{"1":"Rearing","2":"0.137954575","3":"0.0000000","4":"0.3452670","5":"2"},{"1":"Photic+Rearing","2":"0.641471304","3":"0.5570202","4":"0.7283426","5":"1"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["term"],"name":[1],"type":["chr"],"align":["left"]},{"label":["estimate"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["CI_lower"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["CI_upper"],"name":[4],"type":["dbl"],"align":["right"]},{"label":["ndf"],"name":[5],"type":["int"],"align":["right"]}],"data":[{"1":"Full","2":"0.647382799","3":"0.5357865","4":"0.7453512","5":"4"},{"1":"Photic:Rearing","2":"0.006828144","3":"0.0000000","4":"0.2326528","5":"3"},{"1":"Photic","2":"0.497745829","3":"0.3659599","4":"0.6347507","5":"2"},{"1":"Rearing","2":"0.137954575","3":"0.0000000","4":"0.3520429","5":"2"},{"1":"Photic+Rearing","2":"0.641471304","3":"0.5153076","4":"0.7438840","5":"1"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <p><br> It is also wise to perform sensitivity analysis to detect the
